@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: 'spring-cloud-kafka-dlq'
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    function:
+      definition: customerCreatedConsume;customerUpdatedConsume
+    stream:
+      kafka:
+        binder:
+          brokers: 'localhost:9092'
+          auto-create-topics: true
+          auto-add-partitions: true
+          consumer-properties:
+            max.poll.records: 20
+            key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            value.deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+          dlq-producer-properties:
+            configuration.key.serializer: org.apache.kafka.common.serialization.StringSerializer
+            configuration.value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+        bindings:
+          customerCreatedConsume-in-0:
+            consumer:
+              enable-dlq: false
+              dlq-name: 'queueing.example.customer.created.dlq'
+              auto-commit-offset: true
+              auto-commit-on-error: false
+              ack-each-record: true
+              configuration:
+                max.poll.interval.ms: 10000
+          customerUpdatedConsume-in-0:
+            consumer:
+              auto-commit-offset: false
+              configuration:
+                max.poll.interval.ms: 10000
+
+      bindings:
+        customerCreatedConsume-in-0:
+          destination: 'queueing.example.customer.created'
+          group: ${spring.application.name}-customer-created
+          content-type: application/json
+          consumer:
+            max-attempts: 10
+            default-retryable: true
+        customerUpdatedConsume-in-0:
+          destination: 'queueing.example.customer.updated'
+          group: ${spring.application.name}-customer-updated
+          content-type: application/json
+
+logging:
+  level:
+    org.springframework: INFO
+    net.elau.example.springcloudkafkadlq: DEBUG
